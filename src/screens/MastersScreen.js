@@ -459,10 +459,10 @@ export default function MastersScreen() {
                     <Text style={styles.infoLabel}>Developer Contact</Text>
                     <TouchableOpacity 
                       style={styles.infoEmailBtn}
-                      onPress={() => Alert.alert('Contact', 'You can reach us at: ismumik@gmail.com')}
+                      onPress={() => Alert.alert('Contact', 'You can reach us at: mik.hub.og@gmail.com')}
                     >
                       <Ionicons name="mail" size={20} color="#2f95dc" />
-                      <Text style={styles.infoEmail}>ismumik@gmail.com</Text>
+                      <Text style={styles.infoEmail}>mik.hub.og@gmail.com</Text>
                     </TouchableOpacity>
 
                     <View style={styles.infoLinksContainer}>
@@ -491,9 +491,14 @@ export default function MastersScreen() {
                         <Text style={styles.infoLinkText}>MiK_HUB</Text>
                       </TouchableOpacity>
                       
-                      <TouchableOpacity style={styles.infoLinkRow} onPress={() => Linking.openURL('https://mik-hub.vercel.app/privacy-policy')}>
+                      <TouchableOpacity style={styles.infoLinkRow} onPress={() => Linking.openURL('https://mik-hub.vercel.app/ExpenseTrackerPrivacyPolicy.html')}>
                         <Ionicons name="shield-checkmark" size={20} color={colors.success} />
                         <Text style={styles.infoLinkText}>Privacy Policy</Text>
+                      </TouchableOpacity>
+                      
+                      <TouchableOpacity style={styles.infoLinkRow} onPress={() => Linking.openURL('https://mik-hub.vercel.app/ExpenseTrackerTermsAndCondition.html')}>
+                        <Ionicons name="shield-checkmark" size={20} color={colors.success} />
+                        <Text style={styles.infoLinkText}>Terms & Conditions</Text>
                       </TouchableOpacity>
                     </View>
 

@@ -219,6 +219,8 @@ export default function DashboardScreen({ navigation }) {
     let totalAmount = 0;
     let titleText = '';
     let maxValue = 0;
+    let maxPositive = 0;
+    let maxNegative = 0;
 
     if (spendingTab === 'total') {
       chartData = consumption.map(m => ({ ...m, value: m.total_share || 0 }));
@@ -332,21 +334,9 @@ export default function DashboardScreen({ navigation }) {
                     </View>
                   </View>
                   
-                  {isOutstanding ? (
-                    <View style={[styles.barBackground, { backgroundColor: 'transparent', flexDirection: 'row', alignItems: 'center', height: 8, marginHorizontal: 0 }]}>
-                      <View style={{ flex: 1, height: '100%', flexDirection: 'row', justifyContent: 'flex-end', backgroundColor: colors.borderLight, borderTopLeftRadius: 4, borderBottomLeftRadius: 4, overflow: 'hidden' }}>
-                        {isNegative && <View style={{ width: `${percentage}%`, height: '100%', backgroundColor: colors.success, borderTopLeftRadius: 4, borderBottomLeftRadius: 4 }} />}
-                      </View>
-                      <View style={{ width: 2, height: 14, backgroundColor: colors.card, zIndex: 1, borderRadius: 1 }} />
-                      <View style={{ flex: 1, height: '100%', flexDirection: 'row', justifyContent: 'flex-start', backgroundColor: colors.borderLight, borderTopRightRadius: 4, borderBottomRightRadius: 4, overflow: 'hidden' }}>
-                        {!isNegative && <View style={{ width: `${percentage}%`, height: '100%', backgroundColor: colors.danger, borderTopRightRadius: 4, borderBottomRightRadius: 4 }} />}
-                      </View>
-                    </View>
-                  ) : (
-                    <View style={[styles.barBackground, { marginHorizontal: 0, height: 8 }]}>
-                      <View style={[styles.barFill, { width: `${percentage}%`, backgroundColor: color }]} />
-                    </View>
-                  )}
+                  <View style={[styles.barBackground, { marginHorizontal: 0, height: 8 }]}>
+                    <View style={[styles.barFill, { width: `${percentage}%`, backgroundColor: isOutstanding ? (isNegative ? colors.success : colors.danger) : color }]} />
+                  </View>
                 </View>
               );
             })}
