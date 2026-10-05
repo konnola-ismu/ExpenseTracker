@@ -227,7 +227,7 @@ export default function SettlementScreen({ navigation }) {
     });
   };
 
-  const handleSettleUpToDateChange = (event, selectedDate) => {
+  const handleSettleUpToDateChange = (selectedDate) => {
     setShowUpToDatePicker(false);
     if (selectedDate) {
       setSettleUpToDate(selectedDate);
@@ -457,10 +457,11 @@ export default function SettlementScreen({ navigation }) {
           value={date}
           mode="date"
           display="default"
-          onChange={(event, selectedDate) => {
+          onValueChange={(selectedDate) => {
             setShowDatePicker(false);
             if (selectedDate) setDate(selectedDate);
           }}
+          onDismiss={() => setShowDatePicker(false)}
         />
       )}
 
@@ -469,7 +470,8 @@ export default function SettlementScreen({ navigation }) {
           value={settleUpToDate || new Date()}
           mode="date"
           display="default"
-          onChange={handleSettleUpToDateChange}
+          onValueChange={handleSettleUpToDateChange}
+          onDismiss={() => setShowUpToDatePicker(false)}
         />
       )}
 

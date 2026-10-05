@@ -131,13 +131,13 @@ export default function ReportsScreen() {
     setToDate(to);
   };
 
-  const onDateChange = (event, selectedDate, type) => {
+  const onDateChange = (date, type) => {
     const showSetter = type === 'from' ? setShowFromPicker : setShowToPicker;
     const dateSetter = type === 'from' ? setFromDate : setToDate;
     
     showSetter(Platform.OS === 'ios'); // iOS stays open
-    if (selectedDate) {
-      const dateStr = selectedDate.toISOString().split('T')[0];
+    if (date) {
+      const dateStr = date.toISOString().split('T')[0];
       dateSetter(dateStr);
     }
   };
@@ -279,7 +279,13 @@ export default function ReportsScreen() {
                     <th style="border: 1px solid #ddd; padding: 12px; text-align: left;">${isOutstanding ? 'Member Name' : 'Date'}</th>
                     <th style="border: 1px solid #ddd; padding: 12px; text-align: left;">${isOutstanding || isSettlement ? 'Info' : 'Description'}</th>
                     ${isMemberDetail ? '<th style="border: 1px solid #ddd; padding: 12px; text-align: center;">Qty</th>' : ''}
+                    ${isMemberDetail ? `
+                    <th style="border: 1px solid #ddd; padding: 12px; text-align: right;">Bill amount</th>
+                    <th style="border: 1px solid #ddd; padding: 12px; text-align: right;">Settlement</th>
+                    <th style="border: 1px solid #ddd; padding: 12px; text-align: right;">Total Balance</th>
+                    ` : `
                     <th style="border: 1px solid #ddd; padding: 12px; text-align: right;">Amount</th>
+                    `}
                   `}
                 </tr>
               </thead>
@@ -296,11 +302,13 @@ export default function ReportsScreen() {
       });
       
       let memberOpeningBalance = 0;
+      let runningBalance = 0;
       if (isMemberDetail && includeOpeningBalance && fromDate) {
         const memberOb = openingBalances.find(ob => ob.member_name === selectedMember);
         if (memberOb) {
           memberOpeningBalance = memberOb.balance || 0;
         }
+        runningBalance = memberOpeningBalance;
         
         if (memberOpeningBalance !== 0) {
           const isCredit = memberOpeningBalance < -0.001;
@@ -313,7 +321,9 @@ export default function ReportsScreen() {
             <tr style="background-color: #fcfcfc; font-style: italic;">
               <td style="border: 1px solid #ddd; padding: 10px;">${formatDate(fromDate)}</td>
               <td style="border: 1px solid #ddd; padding: 10px;">Opening Balance</td>
-              ${isMemberDetail ? '<td style="border: 1px solid #ddd; padding: 10px; text-align: center;">-</td>' : ''}
+              <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">-</td>
+              <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">-</td>
+              <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">-</td>
               <td style="border: 1px solid #ddd; padding: 10px; text-align: right; color: ${textColor}; font-weight: bold;">${prefix}${displayAmt}</td>
             </tr>
           `;
@@ -391,15 +401,38 @@ export default function ReportsScreen() {
           const textColor = isCredit ? '#28a745' : isDebit ? '#dc3545' : '#2f95dc';
           const prefix = (isCredit && activeTab !== 'outstanding') ? '-' : '';
           const displayAmt = formatAmount(Math.abs(amt), item.currency || activeCurrency, currencies);
-          html += `
-            <tr>
-              ${activeTab === 'bill' ? `<td style="border: 1px solid #ddd; padding: 10px; text-align: center;">#${item.id || ''}</td>` : ''}
-              <td style="border: 1px solid #ddd; padding: 10px;">${dateVal}</td>
-              <td style="border: 1px solid #ddd; padding: 10px;">${desc}</td>
-              ${isMemberDetail ? `<td style="border: 1px solid #ddd; padding: 10px; text-align: center;">${qty}</td>` : ''}
-              <td style="border: 1px solid #ddd; padding: 10px; text-align: right; color: ${textColor}; font-weight: bold;">${prefix}${displayAmt}</td>
-            </tr>
-          `;
+          
+          if (isMemberDetail) {
+            const billAmt = isDebit ? Math.abs(amt) : 0;
+            const settlementAmt = isCredit ? Math.abs(amt) : 0;
+            runningBalance += amt;
+            const balIsCredit = runningBalance < -0.001;
+            const balIsDebit = runningBalance > 0.001;
+            const balColor = balIsCredit ? '#28a745' : balIsDebit ? '#dc3545' : '#333';
+            const balPrefix = balIsCredit ? '-' : '';
+            const displayBal = formatAmount(Math.abs(runningBalance), item.currency || activeCurrency, currencies);
+            
+            html += `
+              <tr>
+                <td style="border: 1px solid #ddd; padding: 10px;">${dateVal}</td>
+                <td style="border: 1px solid #ddd; padding: 10px;">${desc}</td>
+                <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">${qty}</td>
+                <td style="border: 1px solid #ddd; padding: 10px; text-align: right; color: #dc3545;">${billAmt > 0 ? formatAmount(billAmt, item.currency || activeCurrency, currencies) : '-'}</td>
+                <td style="border: 1px solid #ddd; padding: 10px; text-align: right; color: #28a745;">${settlementAmt > 0 ? formatAmount(settlementAmt, item.currency || activeCurrency, currencies) : '-'}</td>
+                <td style="border: 1px solid #ddd; padding: 10px; text-align: right; color: ${balColor}; font-weight: bold;">${balPrefix}${displayBal}</td>
+              </tr>
+            `;
+          } else {
+            html += `
+              <tr>
+                ${activeTab === 'bill' ? `<td style="border: 1px solid #ddd; padding: 10px; text-align: center;">#${item.id || ''}</td>` : ''}
+                <td style="border: 1px solid #ddd; padding: 10px;">${dateVal}</td>
+                <td style="border: 1px solid #ddd; padding: 10px;">${desc}</td>
+                ${isMemberDetail ? `<td style="border: 1px solid #ddd; padding: 10px; text-align: center;">${qty}</td>` : ''}
+                <td style="border: 1px solid #ddd; padding: 10px; text-align: right; color: ${textColor}; font-weight: bold;">${prefix}${displayAmt}</td>
+              </tr>
+            `;
+          }
         }
       });
       
@@ -436,7 +469,7 @@ export default function ReportsScreen() {
         const totalPrefix = (activeTab === 'member' && selectedMember && isTotalCredit) ? '-' : '';
         html += `
                 <tr style="background-color: #f9f9f9; font-weight: bold;">
-                  <td colspan="${isMemberDetail ? 3 : (activeTab === 'bill' ? 3 : 2)}" style="border: 1px solid #ddd; padding: 12px; text-align: right; font-size: 16px;">Total Sum:</td>
+                  <td colspan="${isMemberDetail ? 5 : (activeTab === 'bill' ? 3 : 2)}" style="border: 1px solid #ddd; padding: 12px; text-align: right; font-size: 16px;">Total Sum:</td>
                   <td style="border: 1px solid #ddd; padding: 12px; text-align: right; color: ${totalColor}; font-size: 18px;">${totalPrefix}${displayTotal} ${activeCurrency}</td>
                 </tr>
               </tbody>
@@ -463,7 +496,7 @@ export default function ReportsScreen() {
       }
       
       const newUri = `${FileSystem.documentDirectory}${customFileName}_${Date.now()}.pdf`;
-      await FileSystem.moveAsync({
+      await FileSystem.copyAsync({
         from: uri,
         to: newUri,
       });
@@ -530,7 +563,8 @@ export default function ReportsScreen() {
                 value={fromDate ? new Date(fromDate) : new Date()}
                 mode="date"
                 display="default"
-                onChange={(e, d) => onDateChange(e, d, 'from')}
+                onValueChange={(d) => onDateChange(d, 'from')}
+                onDismiss={() => setShowFromPicker(false)}
               />
             )}
           </View>
@@ -545,7 +579,8 @@ export default function ReportsScreen() {
                 value={toDate ? new Date(toDate) : new Date()}
                 mode="date"
                 display="default"
-                onChange={(e, d) => onDateChange(e, d, 'to')}
+                onValueChange={(d) => onDateChange(d, 'to')}
+                onDismiss={() => setShowToPicker(false)}
               />
             )}
             </View>

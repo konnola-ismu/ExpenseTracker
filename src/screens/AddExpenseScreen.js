@@ -115,7 +115,7 @@ export default function AddExpenseScreen({ navigation }) {
 
 
 
-  const onDateChange = (event, selectedDate) => {
+  const onDateChange = (selectedDate) => {
     setShowDatePicker(Platform.OS === 'ios');
     if (selectedDate) {
       setDate(selectedDate);
@@ -349,7 +349,8 @@ export default function AddExpenseScreen({ navigation }) {
           value={date}
           mode="date"
           display="default"
-          onChange={onDateChange}
+          onValueChange={onDateChange}
+          onDismiss={() => setShowDatePicker(false)}
         />
       )}
       <View style={styles.tabContainer}>

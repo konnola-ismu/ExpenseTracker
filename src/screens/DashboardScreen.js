@@ -278,10 +278,11 @@ export default function DashboardScreen({ navigation }) {
                 value={periodFromDate}
                 mode="date"
                 display="default"
-                onChange={(e, d) => {
+                onValueChange={(d) => {
                   setShowFromPicker(Platform.OS === 'ios');
                   if (d) setPeriodFromDate(d);
                 }}
+                onDismiss={() => setShowFromPicker(false)}
               />
             )}
             {showToPicker && (
@@ -289,10 +290,11 @@ export default function DashboardScreen({ navigation }) {
                 value={periodToDate}
                 mode="date"
                 display="default"
-                onChange={(e, d) => {
+                onValueChange={(d) => {
                   setShowToPicker(Platform.OS === 'ios');
                   if (d) setPeriodToDate(d);
                 }}
+                onDismiss={() => setShowToPicker(false)}
               />
             )}
           </View>
