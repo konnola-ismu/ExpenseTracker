@@ -40,3 +40,40 @@ fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2) + '\n');
 fs.writeFileSync(appJsonPath, JSON.stringify(appJson, null, 2) + '\n');
 
 console.log(`Version bumped to ${newVersion}`);
+
+// Push the new version to Firebase Realtime Database
+const firebaseUrl = 'https://myappsversions-default-rtdb.firebaseio.com/AppVersionManage.json';
+
+const firebaseData = {
+  appName: "Expense Tracker",
+  version: newVersion,
+  latestChanges: [
+    "New release updates and bug fixes" // You can modify this string manually before each release if you want specific points
+  ]
+};
+
+fetch(firebaseUrl)
+  .then(response => response.json())
+  .then(existingData => {
+    if (!existingData) {
+      console.log("Table 'AppVersionManage' does not exist on Firebase. Creating it for the first time...");
+    } else {
+      console.log("Table 'AppVersionManage' found on Firebase. Updating version...");
+    }
+
+    // Now push the updated version data
+    return fetch(firebaseUrl, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(firebaseData)
+    });
+  })
+  .then(response => response.json())
+  .then(data => {
+    console.log(`Successfully pushed version ${newVersion} to Firebase!`);
+  })
+  .catch(error => {
+    console.error('Error pushing version to Firebase:', error);
+  });

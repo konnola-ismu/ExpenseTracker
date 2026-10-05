@@ -10,8 +10,11 @@ import {
   addOrUpdateCurrency, getAllCurrencies,
   updateMaster, deleteMaster,
   getDefaultCurrency, setDefaultCurrency,
-  getSetting, setSetting
+  getSetting, setSetting, DATABASE_NAME
 } from '../database/db';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+import * as DocumentPicker from 'expo-document-picker';
 import { Image } from 'react-native';
 import { formatDate, formatAmount, getCurrencyDecimals } from '../utils/formatters';
 import { useTheme } from '../theme/ThemeContext';
@@ -30,6 +33,7 @@ export default function MastersScreen() {
   const [appLogo, setAppLogo] = useState(null);
   const [showAddress, setShowAddress] = useState(false);
   const [appAddress, setAppAddress] = useState('');
+  const [checkUpdates, setCheckUpdates] = useState(false);
   const DEFAULT_LOGO = Image.resolveAssetSource(require('../../assets/mik_hub_logo.png')).uri;
 
   // Add inputs
@@ -49,7 +53,7 @@ export default function MastersScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      const [m, s, i, c, defCurr] = await Promise.all([
+      const [m, s, i, c, defCurr, logo, showAddr, addr, checkUpdatesSetting] = await Promise.all([
         getAllMembers(db),
         getAllShops(db),
         getAllMasterItems(db),
@@ -57,7 +61,8 @@ export default function MastersScreen() {
         getDefaultCurrency(db),
         getSetting(db, 'app_logo'),
         getSetting(db, 'show_address'),
-        getSetting(db, 'app_address')
+        getSetting(db, 'app_address'),
+        getSetting(db, 'check_updates')
       ]);
       setMembers(m);
       setShops(s);
@@ -67,10 +72,16 @@ export default function MastersScreen() {
       setAppLogo(logo);
       setShowAddress(showAddr === 'true');
       setAppAddress(addr || '');
+      setCheckUpdates(checkUpdatesSetting === 'true');
     } catch (e) {
       console.log('Error loading masters:', e);
     }
   }, [db]);
+
+  const toggleCheckUpdates = async (value) => {
+    setCheckUpdates(value);
+    await setSetting(db, 'check_updates', value ? 'true' : 'false');
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -215,6 +226,86 @@ export default function MastersScreen() {
   const saveAddress = async (text) => {
     setAppAddress(text);
     await setSetting(db, 'app_address', text);
+  };
+
+  const handleBackup = async () => {
+    try {
+      const dbDir = FileSystem.documentDirectory + 'SQLite';
+      const dbPath = dbDir + '/' + DATABASE_NAME;
+      
+      const fileInfo = await FileSystem.getInfoAsync(dbPath);
+      if (!fileInfo.exists) {
+        Alert.alert('Error', 'Database file not found.');
+        return;
+      }
+      
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(dbPath, {
+          mimeType: 'application/x-sqlite3',
+          dialogTitle: 'Backup Expense Tracker Database',
+          UTI: 'public.database'
+        });
+      } else {
+        Alert.alert('Error', 'Sharing is not available on this device');
+      }
+    } catch (e) {
+      console.error(e);
+      Alert.alert('Backup Failed', e.message);
+    }
+  };
+
+  const handleRestore = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled || !result.assets || result.assets.length === 0) {
+        return; 
+      }
+
+      const file = result.assets[0];
+      
+      if (!file.name.endsWith('.db')) {
+        Alert.alert('Invalid File', 'Please select a valid .db file');
+        return;
+      }
+
+      Alert.alert(
+        'Restore Database',
+        'Are you sure you want to restore this database? This will overwrite all your current data and cannot be undone. The app must be restarted after restoration.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Restore',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                const dbDir = FileSystem.documentDirectory + 'SQLite';
+                const destPath = dbDir + '/' + DATABASE_NAME;
+                
+                await FileSystem.copyAsync({
+                  from: file.uri,
+                  to: destPath,
+                });
+                
+                Alert.alert(
+                  'Restore Successful',
+                  'The database has been restored. Please completely close and reopen the app for changes to take effect.',
+                  [{ text: 'OK' }] 
+                );
+              } catch (err) {
+                console.error(err);
+                Alert.alert('Restore Failed', err.message);
+              }
+            }
+          }
+        ]
+      );
+    } catch (e) {
+      console.error(e);
+      Alert.alert('Restore Failed', e.message);
+    }
   };
 
   const renderListItem = (type, item) => {
@@ -454,6 +545,35 @@ export default function MastersScreen() {
                     <Text style={styles.infoTitle}>MIK HUB Expense Tracker</Text>
                     <Text style={styles.infoVersion}>Version {appVersion}</Text>
                     
+                    <View style={styles.infoDivider} />
+                    
+                    <View style={styles.settingToggleRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.label}>Check for Updates</Text>
+                        <Text style={{ fontSize: 12, color: colors.textSecondary }}>Automatically check for new versions on startup.</Text>
+                      </View>
+                      <TouchableOpacity 
+                        style={[styles.toggleBtn, checkUpdates && styles.toggleBtnOn]}
+                        onPress={() => toggleCheckUpdates(!checkUpdates)}
+                      >
+                        <View style={[styles.toggleCircle, checkUpdates && styles.toggleCircleOn]} />
+                      </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.infoDivider} />
+                    
+                    <Text style={styles.infoLabel}>Database Management</Text>
+                    
+                    <TouchableOpacity style={[styles.pickLogoBtn, { marginBottom: 12, backgroundColor: colors.primary }]} onPress={handleBackup}>
+                      <Ionicons name="download" size={20} color="#fff" />
+                      <Text style={styles.pickLogoBtnText}>Backup Database</Text>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity style={[styles.pickLogoBtn, { marginBottom: 20, backgroundColor: '#ff9500' }]} onPress={handleRestore}>
+                      <Ionicons name="refresh-circle" size={20} color="#fff" />
+                      <Text style={styles.pickLogoBtnText}>Restore Database</Text>
+                    </TouchableOpacity>
+
                     <View style={styles.infoDivider} />
                     
                     <Text style={styles.infoLabel}>Developer Contact</Text>
