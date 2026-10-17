@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, ScrollView, Alert, KeyboardAvoidingView, Platform, Modal, Linking } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, ScrollView, Alert, KeyboardAvoidingView, Platform, Modal, Linking, Switch, ActivityIndicator, Image } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,15 +15,18 @@ import {
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
-import { Image } from 'react-native';
-import { formatDate, formatAmount, getCurrencyDecimals } from '../utils/formatters';
+import { formatDate, formatAmount, getCurrencyDecimals, compareVersions } from '../utils/formatters';
 import { useTheme } from '../theme/ThemeContext';
-import { version as appVersion } from '../../package.json';
+import * as Application from 'expo-application';
+import { version as packageVersion } from '../../package.json';
+
+const appVersion = Application.nativeApplicationVersion || packageVersion;
+
 
 export default function MastersScreen() {
   const db = useSQLiteContext();
-  const { isDarkMode, toggleDarkMode, colors } = useTheme();
-  const styles = getStyles(colors);
+  const { isDarkMode, toggleDarkMode, themeMode, setThemeModePreference, colors } = useTheme();
+  const styles = getStyles(colors, isDarkMode);
   
   const [members, setMembers] = useState([]);
   const [shops, setShops] = useState([]);
@@ -34,6 +37,9 @@ export default function MastersScreen() {
   const [showAddress, setShowAddress] = useState(false);
   const [appAddress, setAppAddress] = useState('');
   const [checkUpdates, setCheckUpdates] = useState(false);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [updateStatus, setUpdateStatus] = useState('upToDate'); // 'upToDate' | 'available'
+  const [availableVersion, setAvailableVersion] = useState(null);
   const DEFAULT_LOGO = Image.resolveAssetSource(require('../../assets/mik_hub_logo.png')).uri;
 
   // Add inputs
@@ -82,6 +88,46 @@ export default function MastersScreen() {
     setCheckUpdates(value);
     await setSetting(db, 'check_updates', value ? 'true' : 'false');
   };
+
+  const handleCheckUpdateNow = async () => {
+    try {
+      setCheckingUpdate(true);
+      const res = await fetch('https://myappsversions-default-rtdb.firebaseio.com/AppVersionManage.json');
+      const data = await res.json();
+      
+      if (data && data.version) {
+        const isNewer = compareVersions(data.version, appVersion) > 0;
+        if (isNewer) {
+          setUpdateStatus('available');
+          setAvailableVersion(data.version);
+          const changes = data.latestChanges && data.latestChanges.length 
+            ? `\n\nWhat's New:\n${data.latestChanges.map(c => `• ${c}`).join('\n')}` 
+            : '';
+          Alert.alert(
+            'New Version Available!',
+            `Version ${data.version} is now available (Current: v${appVersion}).${changes}`,
+            [{ text: 'OK' }]
+          );
+        } else {
+          setUpdateStatus('upToDate');
+          Alert.alert(
+            'Up to Date',
+            `Expense Tracker is up to date (v${appVersion}).`,
+            [{ text: 'OK' }]
+          );
+        }
+      } else {
+        setUpdateStatus('upToDate');
+        Alert.alert('Up to Date', `You are running the latest version (v${appVersion}).`);
+      }
+    } catch (e) {
+      console.log('Update check error:', e);
+      Alert.alert('Check Failed', 'Could not check for updates. Please check your internet connection.');
+    } finally {
+      setCheckingUpdate(false);
+    }
+  };
+
 
   useFocusEffect(
     useCallback(() => {
@@ -455,13 +501,184 @@ export default function MastersScreen() {
                   <Ionicons name="settings" size={24} color={colors.primary} style={{ opacity: 0.5 }} />
                 </View>
 
-                <View style={styles.sectionCard}>
-                  <Text style={{ fontSize: 14, color: colors.textSecondary, marginBottom: 20 }}>
-                    Configure your application preferences and branding here.
-                  </Text>
+                {/* Section: APPEARANCE */}
+                <View style={styles.sectionHeaderRow}>
+                  <Ionicons name="color-palette" size={18} color="#38bdf8" />
+                  <Text style={styles.sectionHeaderText}>APPEARANCE</Text>
+                </View>
 
-                  <Text style={[styles.label, { marginTop: 0 }]}>Application Logo</Text>
-                  <View style={{ alignItems: 'center', marginBottom: 30 }}>
+                <View style={styles.modernCard}>
+                  <View style={styles.modernCardRow}>
+                    <View style={styles.cardIconBox}>
+                      <Ionicons name="moon" size={22} color="#fbbf24" />
+                    </View>
+                    <View style={styles.cardTextCol}>
+                      <Text style={styles.modernCardTitle}>Dark Theme</Text>
+                      <Text style={styles.modernCardSubtitle}>
+                        {isDarkMode ? 'Dark mode is currently enabled' : 'Dark mode is currently disabled'}
+                      </Text>
+                    </View>
+                    <Switch
+                      value={isDarkMode}
+                      onValueChange={toggleDarkMode}
+                      trackColor={{ false: isDarkMode ? '#334155' : '#cbd5e1', true: '#38bdf8' }}
+                      thumbColor="#ffffff"
+                      ios_backgroundColor={isDarkMode ? '#334155' : '#cbd5e1'}
+                    />
+                  </View>
+
+                  <View style={styles.modernDivider} />
+
+                  <Text style={styles.preferenceLabel}>Theme Mode Preference</Text>
+                  <View style={styles.segmentedContainer}>
+                    <TouchableOpacity
+                      style={[
+                        styles.segmentTab,
+                        themeMode === 'system' && styles.segmentTabActive
+                      ]}
+                      onPress={() => setThemeModePreference('system')}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons
+                        name="phone-portrait-outline"
+                        size={17}
+                        color={themeMode === 'system' ? (isDarkMode ? '#38bdf8' : '#0284c7') : '#64748b'}
+                      />
+                      <Text
+                        style={[
+                          styles.segmentText,
+                          themeMode === 'system' && styles.segmentTextActive
+                        ]}
+                      >
+                        System
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.segmentTab,
+                        themeMode === 'light' && styles.segmentTabActive
+                      ]}
+                      onPress={() => setThemeModePreference('light')}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons
+                        name="sunny-outline"
+                        size={17}
+                        color={themeMode === 'light' ? (isDarkMode ? '#38bdf8' : '#0284c7') : '#64748b'}
+                      />
+                      <Text
+                        style={[
+                          styles.segmentText,
+                          themeMode === 'light' && styles.segmentTextActive
+                        ]}
+                      >
+                        Light
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.segmentTab,
+                        themeMode === 'dark' && styles.segmentTabActive
+                      ]}
+                      onPress={() => setThemeModePreference('dark')}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons
+                        name="moon"
+                        size={17}
+                        color={themeMode === 'dark' ? (isDarkMode ? '#38bdf8' : '#0284c7') : '#64748b'}
+                      />
+                      <Text
+                        style={[
+                          styles.segmentText,
+                          themeMode === 'dark' && styles.segmentTextActive
+                        ]}
+                      >
+                        Dark
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Section: APP UPDATES */}
+                <View style={styles.sectionHeaderRow}>
+                  <Ionicons name="notifications" size={18} color="#38bdf8" />
+                  <Text style={styles.sectionHeaderText}>APP UPDATES</Text>
+                </View>
+
+                <View style={styles.modernCard}>
+                  <View style={styles.modernCardRow}>
+                    <View style={styles.cardIconBox}>
+                      <Ionicons name="cloud-download-outline" size={24} color="#38bdf8" />
+                    </View>
+                    <View style={styles.cardTextCol}>
+                      <Text style={styles.modernCardTitle}>Notify App Updates</Text>
+                      <Text style={styles.modernCardSubtitle}>
+                        Check internet & notify when a newer version is released
+                      </Text>
+                    </View>
+                    <Switch
+                      value={checkUpdates}
+                      onValueChange={toggleCheckUpdates}
+                      trackColor={{ false: isDarkMode ? '#334155' : '#cbd5e1', true: '#38bdf8' }}
+                      thumbColor="#ffffff"
+                      ios_backgroundColor={isDarkMode ? '#334155' : '#cbd5e1'}
+                    />
+                  </View>
+
+                  <View style={styles.modernDivider} />
+
+                  <View style={styles.updateBottomRow}>
+                    <View style={{ flex: 1, paddingRight: 8 }}>
+                      <Text style={styles.installedVersionText}>Installed: v{appVersion}</Text>
+                      <View style={[
+                        styles.statusBadge,
+                        updateStatus === 'available' ? styles.statusBadgeAvailable : styles.statusBadgeUpToDate
+                      ]}>
+                        <Ionicons
+                          name={updateStatus === 'available' ? 'arrow-up-circle' : 'checkmark-circle'}
+                          size={15}
+                          color={updateStatus === 'available' ? '#f59e0b' : '#10b981'}
+                          style={{ marginRight: 5 }}
+                        />
+                        <Text style={[
+                          styles.statusBadgeText,
+                          updateStatus === 'available' ? styles.statusBadgeTextAvailable : styles.statusBadgeTextUpToDate
+                        ]}>
+                          {updateStatus === 'available' ? `Update: v${availableVersion}` : 'Up to Date'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <TouchableOpacity
+                      style={styles.checkNowBtn}
+                      onPress={handleCheckUpdateNow}
+                      disabled={checkingUpdate}
+                      activeOpacity={0.7}
+                    >
+                      {checkingUpdate ? (
+                        <ActivityIndicator size="small" color={isDarkMode ? '#ffffff' : '#0f172a'} style={{ marginRight: 6 }} />
+                      ) : (
+                        <Ionicons name="sync" size={16} color={isDarkMode ? '#ffffff' : '#0f172a'} style={{ marginRight: 6 }} />
+                      )}
+                      <Text style={styles.checkNowBtnText}>
+                        {checkingUpdate ? 'Checking...' : 'Check Now'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Section: APPLICATION LOGO & ADDRESS */}
+                <View style={[styles.sectionHeaderRow, { marginTop: 24 }]}>
+                  <Ionicons name="images" size={18} color="#38bdf8" />
+                  <Text style={styles.sectionHeaderText}>APPLICATION LOGO & REPORTS</Text>
+                </View>
+
+                <View style={styles.modernCard}>
+                  <Text style={styles.preferenceLabel}>Application Logo</Text>
+                  <View style={{ alignItems: 'center', marginBottom: 20 }}>
                     <View style={styles.logoPreviewContainer}>
                       <Image source={{ uri: appLogo || DEFAULT_LOGO }} style={styles.logoPreview} />
                     </View>
@@ -479,44 +696,31 @@ export default function MastersScreen() {
                     <Text style={styles.pickLogoBtnText}>{appLogo ? 'Change Logo' : 'Select Logo'}</Text>
                   </TouchableOpacity>
 
-                  <View style={styles.infoDivider} />
+                  <View style={styles.modernDivider} />
 
-                  <View style={styles.settingToggleRow}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.label}>Dark Mode</Text>
-                      <Text style={{ fontSize: 12, color: colors.textSecondary }}>Enable dark theme across the app.</Text>
+                  <View style={styles.modernCardRow}>
+                    <View style={{ flex: 1, marginRight: 8 }}>
+                      <Text style={styles.modernCardTitle}>Show Address on Reports</Text>
+                      <Text style={styles.modernCardSubtitle}>If enabled, the address below will appear on all PDF exports.</Text>
                     </View>
-                    <TouchableOpacity 
-                      style={[styles.toggleBtn, isDarkMode && styles.toggleBtnOn]}
-                      onPress={toggleDarkMode}
-                    >
-                      <View style={[styles.toggleCircle, isDarkMode && styles.toggleCircleOn]} />
-                    </TouchableOpacity>
-                  </View>
-
-                  <View style={styles.infoDivider} />
-
-                  <View style={styles.settingToggleRow}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.label}>Show Address on Reports</Text>
-                      <Text style={{ fontSize: 12, color: colors.textSecondary }}>If enabled, the address below will appear on all PDF exports.</Text>
-                    </View>
-                    <TouchableOpacity 
-                      style={[styles.toggleBtn, showAddress && styles.toggleBtnOn]}
-                      onPress={() => toggleAddress(!showAddress)}
-                    >
-                      <View style={[styles.toggleCircle, showAddress && styles.toggleCircleOn]} />
-                    </TouchableOpacity>
+                    <Switch
+                      value={showAddress}
+                      onValueChange={(val) => toggleAddress(val)}
+                      trackColor={{ false: isDarkMode ? '#334155' : '#cbd5e1', true: '#38bdf8' }}
+                      thumbColor="#ffffff"
+                      ios_backgroundColor={isDarkMode ? '#334155' : '#cbd5e1'}
+                    />
                   </View>
 
                   {showAddress && (
                     <View style={styles.addressContainer}>
-                      <Text style={styles.label}>Business Address</Text>
+                      <Text style={[styles.preferenceLabel, { marginTop: 12 }]}>Business Address</Text>
                       <TextInput
                         style={styles.addressInput}
                         value={appAddress}
                         onChangeText={saveAddress}
                         placeholder="Enter your business address, city, phone, etc."
+                        placeholderTextColor={colors.textSecondary}
                         multiline
                         numberOfLines={3}
                       />
@@ -547,22 +751,8 @@ export default function MastersScreen() {
                     
                     <View style={styles.infoDivider} />
                     
-                    <View style={styles.settingToggleRow}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.label}>Check for Updates</Text>
-                        <Text style={{ fontSize: 12, color: colors.textSecondary }}>Automatically check for new versions on startup.</Text>
-                      </View>
-                      <TouchableOpacity 
-                        style={[styles.toggleBtn, checkUpdates && styles.toggleBtnOn]}
-                        onPress={() => toggleCheckUpdates(!checkUpdates)}
-                      >
-                        <View style={[styles.toggleCircle, checkUpdates && styles.toggleCircleOn]} />
-                      </TouchableOpacity>
-                    </View>
-
-                    <View style={styles.infoDivider} />
-                    
                     <Text style={styles.infoLabel}>Database Management</Text>
+
                     
                     <TouchableOpacity style={[styles.pickLogoBtn, { marginBottom: 12, backgroundColor: colors.primary }]} onPress={handleBackup}>
                       <Ionicons name="download" size={20} color="#fff" />
@@ -673,7 +863,7 @@ export default function MastersScreen() {
   );
 }
 
-const getStyles = (colors) => StyleSheet.create({
+const getStyles = (colors, isDarkMode) => StyleSheet.create({
   container: { flex: 1, padding: 16, backgroundColor: colors.background },
   sectionCard: { backgroundColor: colors.card, borderRadius: 16, padding: 16, marginBottom: 20, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
   inputRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
@@ -845,5 +1035,165 @@ const getStyles = (colors) => StyleSheet.create({
     color: colors.text,
     textAlignVertical: 'top',
     minHeight: 80,
-  }
+  },
+
+  // Modern Section & Card Styles (matching screenshot)
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 22,
+    marginBottom: 10,
+    paddingHorizontal: 4,
+  },
+  sectionHeaderText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    letterSpacing: 1,
+    marginLeft: 8,
+  },
+  modernCard: {
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: isDarkMode ? '#1e293b' : colors.borderLight,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: isDarkMode ? 0.25 : 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  modernCardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  cardIconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: isDarkMode ? '#1e293b' : '#f1f5f9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  cardTextCol: {
+    flex: 1,
+    marginRight: 8,
+  },
+  modernCardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 3,
+  },
+  modernCardSubtitle: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
+  modernDivider: {
+    width: '100%',
+    height: 1,
+    backgroundColor: isDarkMode ? '#1e293b' : colors.borderLight,
+    marginVertical: 16,
+  },
+  preferenceLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginBottom: 12,
+  },
+  segmentedContainer: {
+    flexDirection: 'row',
+    backgroundColor: isDarkMode ? '#0d131d' : '#f1f5f9',
+    borderRadius: 12,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: isDarkMode ? '#1a2433' : '#e2e8f0',
+  },
+  segmentTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 9,
+  },
+  segmentTabActive: {
+    backgroundColor: isDarkMode ? '#1a273a' : '#ffffff',
+    borderWidth: 1,
+    borderColor: isDarkMode ? '#2f4463' : '#cbd5e1',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  segmentText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: isDarkMode ? '#64748b' : '#64748b',
+    marginLeft: 6,
+  },
+  segmentTextActive: {
+    fontWeight: '700',
+    color: colors.text,
+  },
+  updateBottomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  installedVersionText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.textSecondary,
+    marginBottom: 8,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+  statusBadgeUpToDate: {
+    backgroundColor: isDarkMode ? '#0d281e' : '#d1fae5',
+    borderWidth: 1,
+    borderColor: isDarkMode ? '#10b98144' : '#a7f3d0',
+  },
+  statusBadgeAvailable: {
+    backgroundColor: isDarkMode ? '#2c1b0d' : '#fef3c7',
+    borderWidth: 1,
+    borderColor: isDarkMode ? '#f59e0b44' : '#fde68a',
+  },
+  statusBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  statusBadgeTextUpToDate: {
+    color: isDarkMode ? '#34d399' : '#059669',
+  },
+  statusBadgeTextAvailable: {
+    color: '#f59e0b',
+  },
+  checkNowBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: isDarkMode ? '#0e1622' : '#f8fafc',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: isDarkMode ? '#2a3b52' : '#cbd5e1',
+  },
+  checkNowBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+  },
 });
+

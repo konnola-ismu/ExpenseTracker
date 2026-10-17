@@ -1,66 +1,77 @@
 import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
+import { useColorScheme } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
 import { getSetting, setSetting } from '../database/db';
 
 const lightColors = {
-  background: '#f2f2f7',
+  background: '#f8fafc',
   card: '#ffffff',
-  text: '#1c1c1e',
-  textSecondary: '#8e8e93',
-  primary: '#2f95dc',
-  primaryLight: '#2f95dc22',
-  border: '#e5e5ea',
-  borderLight: '#f0f0f0',
-  success: '#34c759',
-  danger: '#ff3b30',
-  warning: '#ffcc00',
-  iconBackground: '#eef',
-  dangerLight: '#ffe5e5',
-  successLight: '#e5ffe5',
+  text: '#0f172a',
+  textSecondary: '#64748b',
+  primary: '#0284c7',
+  primaryLight: '#0284c718',
+  border: '#e2e8f0',
+  borderLight: '#f1f5f9',
+  success: '#10b981',
+  danger: '#ef4444',
+  warning: '#f59e0b',
+  iconBackground: '#f1f5f9',
+  dangerLight: '#fee2e2',
+  successLight: '#d1fae5',
   tabBar: '#ffffff',
-  tabBarActive: '#2f95dc',
-  tabBarInactive: '#8e8e93',
+  tabBarActive: '#0284c7',
+  tabBarInactive: '#94a3b8',
   headerBackground: '#ffffff',
-  headerText: '#1c1c1e',
-  inputBackground: '#fafafa',
+  headerText: '#0f172a',
+  inputBackground: '#f1f5f9',
 };
 
 const darkColors = {
-  background: '#121212',
-  card: '#1e1e1e',
+  background: '#0b111a',
+  card: '#131b26',
   text: '#f2f2f7',
-  textSecondary: '#a1a1aa',
-  primary: '#4da3ff',
-  primaryLight: '#4da3ff33',
-  border: '#333333',
-  borderLight: '#2c2c2e',
-  success: '#32d74b',
+  textSecondary: '#94a3b8',
+  primary: '#38bdf8',
+  primaryLight: '#38bdf822',
+  border: '#1e293b',
+  borderLight: '#1e293b',
+  success: '#10b981',
   danger: '#ff453a',
-  warning: '#ffd60a',
-  iconBackground: '#2c2c2e',
+  warning: '#fbbf24',
+  iconBackground: '#1e293b',
   dangerLight: '#ff453a33',
-  successLight: '#32d74b33',
-  tabBar: '#1e1e1e',
-  tabBarActive: '#4da3ff',
-  tabBarInactive: '#a1a1aa',
-  headerBackground: '#1e1e1e',
+  successLight: '#064e3b44',
+  tabBar: '#131b26',
+  tabBarActive: '#38bdf8',
+  tabBarInactive: '#94a3b8',
+  headerBackground: '#131b26',
   headerText: '#f2f2f7',
-  inputBackground: '#2c2c2e',
+  inputBackground: '#0d131d',
 };
 
 const ThemeContext = createContext();
 
 export const ThemeProvider = ({ children }) => {
   const db = useSQLiteContext();
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const systemColorScheme = useColorScheme();
+  const [themeMode, setThemeMode] = useState('system'); // 'system' | 'light' | 'dark'
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
     const loadTheme = async () => {
       try {
-        const darkModeSetting = await getSetting(db, 'dark_mode');
-        if (darkModeSetting === 'true') {
-          setIsDarkMode(true);
+        const savedMode = await getSetting(db, 'theme_mode');
+        if (savedMode === 'system' || savedMode === 'light' || savedMode === 'dark') {
+          setThemeMode(savedMode);
+        } else {
+          const legacyDark = await getSetting(db, 'dark_mode');
+          if (legacyDark === 'true') {
+            setThemeMode('dark');
+          } else if (legacyDark === 'false') {
+            setThemeMode('light');
+          } else {
+            setThemeMode('system');
+          }
         }
       } catch (e) {
         console.warn('Failed to load theme preference', e);
@@ -71,27 +82,36 @@ export const ThemeProvider = ({ children }) => {
     loadTheme();
   }, [db]);
 
-  const toggleDarkMode = useCallback(async () => {
-    const newValue = !isDarkMode;
-    setIsDarkMode(newValue);
+  const setThemeModePreference = useCallback(async (mode) => {
+    setThemeMode(mode);
     try {
-      await setSetting(db, 'dark_mode', newValue ? 'true' : 'false');
+      await setSetting(db, 'theme_mode', mode);
+      const effectiveDark = mode === 'dark' || (mode === 'system' && systemColorScheme === 'dark');
+      await setSetting(db, 'dark_mode', effectiveDark ? 'true' : 'false');
     } catch (e) {
       console.warn('Failed to save theme preference', e);
     }
-  }, [isDarkMode, db]);
+  }, [db, systemColorScheme]);
+
+  const isDarkMode = themeMode === 'dark' || (themeMode === 'system' && systemColorScheme === 'dark');
+
+  const toggleDarkMode = useCallback(async () => {
+    const newMode = isDarkMode ? 'light' : 'dark';
+    await setThemeModePreference(newMode);
+  }, [isDarkMode, setThemeModePreference]);
 
   const colors = isDarkMode ? darkColors : lightColors;
 
   if (!isLoaded) {
-    return null; // or a loading spinner
+    return null;
   }
 
   return (
-    <ThemeContext.Provider value={{ isDarkMode, toggleDarkMode, colors }}>
+    <ThemeContext.Provider value={{ isDarkMode, toggleDarkMode, themeMode, setThemeModePreference, colors }}>
       {children}
     </ThemeContext.Provider>
   );
 };
 
 export const useTheme = () => useContext(ThemeContext);
+

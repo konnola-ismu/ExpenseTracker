@@ -16,8 +16,13 @@ import AddExpenseScreen from './src/screens/AddExpenseScreen';
 import ReportsScreen from './src/screens/ReportsScreen';
 import SettlementScreen from './src/screens/SettlementScreen';
 import { getSetting, setSetting } from './src/database/db';
-import { version as appVersion } from './package.json';
+import * as Application from 'expo-application';
+import { version as packageVersion } from './package.json';
+
+const appVersion = Application.nativeApplicationVersion || packageVersion;
+
 import { Modal, TouchableOpacity } from 'react-native';
+import { compareVersions } from './src/utils/formatters';
 
 // json-render setup
 import { defineCatalog } from "@json-render/core";
@@ -71,6 +76,7 @@ function TabNavigator() {
 
 function UpdateChecker() {
   const db = useSQLiteContext();
+  const { colors } = useTheme();
   const [modalVisible, setModalVisible] = useState(false);
   const [updateInfo, setUpdateInfo] = useState(null);
 
@@ -88,7 +94,7 @@ function UpdateChecker() {
         const res = await fetch('https://myappsversions-default-rtdb.firebaseio.com/AppVersionManage.json');
         const data = await res.json();
         
-        if (data && data.version && data.version !== appVersion) {
+        if (data && data.version && compareVersions(data.version, appVersion) > 0) {
           setUpdateInfo(data);
           setModalVisible(true);
         }
@@ -105,24 +111,32 @@ function UpdateChecker() {
 
   return (
     <Modal visible transparent animationType="fade">
-      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }}>
-        <View style={{ width: '80%', backgroundColor: '#fff', padding: 20, borderRadius: 10 }}>
-          <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 10, color: '#000' }}>New Version Available!</Text>
-          <Text style={{ fontSize: 16, marginBottom: 10, color: '#333' }}>Version: {updateInfo.version}</Text>
-          <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 5, color: '#000' }}>What's New:</Text>
-          {updateInfo.latestChanges && updateInfo.latestChanges.map((change, index) => (
-            <Text key={index} style={{ marginBottom: 5, color: '#333' }}>• {change}</Text>
-          ))}
-          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 20 }}>
-            <TouchableOpacity onPress={() => setModalVisible(false)} style={{ marginRight: 20 }}>
-              <Text style={{ color: '#666', fontSize: 16 }}>Remind me later</Text>
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' }}>
+        <View style={{ width: '85%', backgroundColor: colors.card, padding: 22, borderRadius: 16, borderWidth: 1, borderColor: colors.borderLight }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+            <Ionicons name="sparkles" size={24} color="#38bdf8" style={{ marginRight: 8 }} />
+            <Text style={{ fontSize: 20, fontWeight: 'bold', color: colors.text }}>New Version Available!</Text>
+          </View>
+          <Text style={{ fontSize: 15, marginBottom: 12, color: colors.textSecondary }}>
+            A newer release <Text style={{ fontWeight: 'bold', color: colors.primary }}>v{updateInfo.version}</Text> is now available (Current: v{appVersion}).
+          </Text>
+          {updateInfo.latestChanges && updateInfo.latestChanges.length > 0 && (
+            <View style={{ backgroundColor: colors.inputBackground, padding: 12, borderRadius: 10, marginBottom: 16 }}>
+              <Text style={{ fontSize: 14, fontWeight: '700', marginBottom: 6, color: colors.text }}>What's New:</Text>
+              {updateInfo.latestChanges.map((change, index) => (
+                <Text key={index} style={{ marginBottom: 4, color: colors.textSecondary, fontSize: 13 }}>• {change}</Text>
+              ))}
+            </View>
+          )}
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginTop: 8 }}>
+            <TouchableOpacity onPress={() => setModalVisible(false)} style={{ marginRight: 16, padding: 8 }}>
+              <Text style={{ color: colors.textSecondary, fontSize: 15 }}>Remind me later</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={async () => {
-              setModalVisible(false);
-              // Option to not remind again for this version by setting date far in future, 
-              // or just keep it simple with 'close' doing the same as 'remind me later' (checks next day)
-            }}>
-              <Text style={{ color: '#007AFF', fontSize: 16, fontWeight: 'bold' }}>Close</Text>
+            <TouchableOpacity 
+              onPress={() => setModalVisible(false)} 
+              style={{ backgroundColor: colors.primary, paddingVertical: 10, paddingHorizontal: 18, borderRadius: 8 }}
+            >
+              <Text style={{ color: '#fff', fontSize: 15, fontWeight: 'bold' }}>Close</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -130,6 +144,7 @@ function UpdateChecker() {
     </Modal>
   );
 }
+
 
 function AppNavigation() {
   const { isDarkMode, colors } = useTheme();
