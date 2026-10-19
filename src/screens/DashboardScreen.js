@@ -275,24 +275,40 @@ export default function DashboardScreen({ navigation }) {
 
             {showFromPicker && (
               <DateTimePicker
-                value={periodFromDate}
+                value={periodFromDate instanceof Date && !isNaN(periodFromDate.getTime()) ? periodFromDate : new Date()}
                 mode="date"
                 display="default"
-                onValueChange={(d) => {
+                onChange={(event, d) => {
                   setShowFromPicker(Platform.OS === 'ios');
-                  if (d) setPeriodFromDate(d);
+                  if (event?.type === 'dismissed') return;
+                  const chosen = d || (event instanceof Date ? event : null);
+                  if (chosen && chosen instanceof Date && !isNaN(chosen.getTime())) setPeriodFromDate(chosen);
+                }}
+                onValueChange={(event, d) => {
+                  setShowFromPicker(Platform.OS === 'ios');
+                  if (event?.type === 'dismissed') return;
+                  const chosen = d || (event instanceof Date ? event : null);
+                  if (chosen && chosen instanceof Date && !isNaN(chosen.getTime())) setPeriodFromDate(chosen);
                 }}
                 onDismiss={() => setShowFromPicker(false)}
               />
             )}
             {showToPicker && (
               <DateTimePicker
-                value={periodToDate}
+                value={periodToDate instanceof Date && !isNaN(periodToDate.getTime()) ? periodToDate : new Date()}
                 mode="date"
                 display="default"
-                onValueChange={(d) => {
+                onChange={(event, d) => {
                   setShowToPicker(Platform.OS === 'ios');
-                  if (d) setPeriodToDate(d);
+                  if (event?.type === 'dismissed') return;
+                  const chosen = d || (event instanceof Date ? event : null);
+                  if (chosen && chosen instanceof Date && !isNaN(chosen.getTime())) setPeriodToDate(chosen);
+                }}
+                onValueChange={(event, d) => {
+                  setShowToPicker(Platform.OS === 'ios');
+                  if (event?.type === 'dismissed') return;
+                  const chosen = d || (event instanceof Date ? event : null);
+                  if (chosen && chosen instanceof Date && !isNaN(chosen.getTime())) setPeriodToDate(chosen);
                 }}
                 onDismiss={() => setShowToPicker(false)}
               />

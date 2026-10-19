@@ -115,10 +115,14 @@ export default function AddExpenseScreen({ navigation }) {
 
 
 
-  const onDateChange = (selectedDate) => {
+  const onDateChange = (event, selectedDate) => {
     setShowDatePicker(Platform.OS === 'ios');
-    if (selectedDate) {
-      setDate(selectedDate);
+    if (event?.type === 'dismissed') {
+      return;
+    }
+    const chosenDate = selectedDate || (event instanceof Date ? event : null);
+    if (chosenDate && chosenDate instanceof Date && !isNaN(chosenDate.getTime())) {
+      setDate(chosenDate);
     }
   };
 
@@ -134,7 +138,7 @@ export default function AddExpenseScreen({ navigation }) {
         description: description.trim(),
         totalAmount: 0,
         currency,
-        date: date.toISOString(),
+        date: (date instanceof Date && !isNaN(date.getTime()) ? date : new Date()).toISOString(),
         splitMode,
         splits: [],
         items: []
@@ -251,7 +255,8 @@ export default function AddExpenseScreen({ navigation }) {
     setCurrency(exp.currency);
     setSplitMode(exp.split_mode);
     setDescription(exp.description || '');
-    setDate(new Date(exp.date));
+    const parsedDate = exp.date ? new Date(exp.date) : new Date();
+    setDate(isNaN(parsedDate.getTime()) ? new Date() : parsedDate);
     
     if (exp.payers && exp.payers.length > 0) {
       setExpensePayers(exp.payers.map(p => ({ memberName: p.memberName, amount: p.amount.toString() })));
@@ -346,9 +351,10 @@ export default function AddExpenseScreen({ navigation }) {
       </TouchableOpacity>
       {showDatePicker && (
         <DateTimePicker
-          value={date}
+          value={date instanceof Date && !isNaN(date.getTime()) ? date : new Date()}
           mode="date"
           display="default"
+          onChange={onDateChange}
           onValueChange={onDateChange}
           onDismiss={() => setShowDatePicker(false)}
         />

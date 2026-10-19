@@ -227,12 +227,16 @@ export default function SettlementScreen({ navigation }) {
     });
   };
 
-  const handleSettleUpToDateChange = (selectedDate) => {
-    setShowUpToDatePicker(false);
-    if (selectedDate) {
-      setSettleUpToDate(selectedDate);
+  const handleSettleUpToDateChange = (event, selectedDate) => {
+    setShowUpToDatePicker(Platform.OS === 'ios');
+    if (event?.type === 'dismissed') {
+      return;
+    }
+    const chosenDate = selectedDate || (event instanceof Date ? event : null);
+    if (chosenDate && chosenDate instanceof Date && !isNaN(chosenDate.getTime())) {
+      setSettleUpToDate(chosenDate);
       setIsSettleUpToDateEnabled(true);
-      autoSelectBills(selectedDate);
+      autoSelectBills(chosenDate);
     } else {
       if (!settleUpToDate) {
         setIsSettleUpToDateEnabled(false);
@@ -454,12 +458,20 @@ export default function SettlementScreen({ navigation }) {
 
       {showDatePicker && (
         <DateTimePicker
-          value={date}
+          value={date instanceof Date && !isNaN(date.getTime()) ? date : new Date()}
           mode="date"
           display="default"
-          onValueChange={(selectedDate) => {
-            setShowDatePicker(false);
-            if (selectedDate) setDate(selectedDate);
+          onChange={(event, selectedDate) => {
+            setShowDatePicker(Platform.OS === 'ios');
+            if (event?.type === 'dismissed') return;
+            const chosen = selectedDate || (event instanceof Date ? event : null);
+            if (chosen && chosen instanceof Date && !isNaN(chosen.getTime())) setDate(chosen);
+          }}
+          onValueChange={(event, selectedDate) => {
+            setShowDatePicker(Platform.OS === 'ios');
+            if (event?.type === 'dismissed') return;
+            const chosen = selectedDate || (event instanceof Date ? event : null);
+            if (chosen && chosen instanceof Date && !isNaN(chosen.getTime())) setDate(chosen);
           }}
           onDismiss={() => setShowDatePicker(false)}
         />
@@ -467,9 +479,10 @@ export default function SettlementScreen({ navigation }) {
 
       {showUpToDatePicker && (
         <DateTimePicker
-          value={settleUpToDate || new Date()}
+          value={settleUpToDate instanceof Date && !isNaN(settleUpToDate.getTime()) ? settleUpToDate : new Date()}
           mode="date"
           display="default"
+          onChange={handleSettleUpToDateChange}
           onValueChange={handleSettleUpToDateChange}
           onDismiss={() => setShowUpToDatePicker(false)}
         />

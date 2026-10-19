@@ -4,7 +4,7 @@ const path = require('path');
 const packageJsonPath = path.join(__dirname, '../package.json');
 const appJsonPath = path.join(__dirname, '../app.json');
 
-const firebaseUrl = 'https://myappsversions-default-rtdb.firebaseio.com/AppVersionManage.json';
+const firebaseUrl = 'https://myappsversions-default-rtdb.firebaseio.com/AppVersionManage/expense_tracker.json';
 
 async function main() {
   try {
@@ -23,7 +23,8 @@ async function main() {
       try {
         const checkRes = await fetch(firebaseUrl);
         const checkData = await checkRes.json();
-        if (checkData && checkData.version === currentVersion && checkData.appName === "Expense Tracker") {
+        const appData = checkData?.expense_tracker || checkData;
+        if (appData && appData.version === currentVersion && appData.appName === "Expense Tracker") {
           console.log(`[EAS Build] Version ${currentVersion} already synced to Firebase. Skipping redundant bump.`);
           return;
         }

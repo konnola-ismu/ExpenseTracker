@@ -91,8 +91,9 @@ function UpdateChecker() {
         
         if (lastCheck === today) return;
 
-        const res = await fetch('https://myappsversions-default-rtdb.firebaseio.com/AppVersionManage.json');
-        const data = await res.json();
+        const res = await fetch('https://myappsversions-default-rtdb.firebaseio.com/AppVersionManage/expense_tracker.json');
+        const rawData = await res.json();
+        const data = rawData?.expense_tracker || rawData;
         
         if (data && data.version && compareVersions(data.version, appVersion) > 0) {
           setUpdateInfo(data);

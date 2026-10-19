@@ -92,8 +92,9 @@ export default function MastersScreen() {
   const handleCheckUpdateNow = async () => {
     try {
       setCheckingUpdate(true);
-      const res = await fetch('https://myappsversions-default-rtdb.firebaseio.com/AppVersionManage.json');
-      const data = await res.json();
+      const res = await fetch('https://myappsversions-default-rtdb.firebaseio.com/AppVersionManage/expense_tracker.json');
+      const rawData = await res.json();
+      const data = rawData?.expense_tracker || rawData;
       
       if (data && data.version) {
         const isNewer = compareVersions(data.version, appVersion) > 0;

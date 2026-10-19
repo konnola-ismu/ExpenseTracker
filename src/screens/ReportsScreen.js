@@ -131,13 +131,15 @@ export default function ReportsScreen() {
     setToDate(to);
   };
 
-  const onDateChange = (date, type) => {
+  const onDateChange = (event, date, type) => {
     const showSetter = type === 'from' ? setShowFromPicker : setShowToPicker;
     const dateSetter = type === 'from' ? setFromDate : setToDate;
     
     showSetter(Platform.OS === 'ios'); // iOS stays open
-    if (date) {
-      const dateStr = date.toISOString().split('T')[0];
+    if (event?.type === 'dismissed') return;
+    const chosenDate = date || (event instanceof Date ? event : null);
+    if (chosenDate && chosenDate instanceof Date && !isNaN(chosenDate.getTime())) {
+      const dateStr = chosenDate.toISOString().split('T')[0];
       dateSetter(dateStr);
     }
   };
@@ -560,10 +562,11 @@ export default function ReportsScreen() {
             </TouchableOpacity>
             {showFromPicker && (
               <DateTimePicker
-                value={fromDate ? new Date(fromDate) : new Date()}
+                value={fromDate && !isNaN(new Date(fromDate).getTime()) ? new Date(fromDate) : new Date()}
                 mode="date"
                 display="default"
-                onValueChange={(d) => onDateChange(d, 'from')}
+                onChange={(event, d) => onDateChange(event, d, 'from')}
+                onValueChange={(event, d) => onDateChange(event, d, 'from')}
                 onDismiss={() => setShowFromPicker(false)}
               />
             )}
@@ -576,10 +579,11 @@ export default function ReportsScreen() {
             </TouchableOpacity>
             {showToPicker && (
               <DateTimePicker
-                value={toDate ? new Date(toDate) : new Date()}
+                value={toDate && !isNaN(new Date(toDate).getTime()) ? new Date(toDate) : new Date()}
                 mode="date"
                 display="default"
-                onValueChange={(d) => onDateChange(d, 'to')}
+                onChange={(event, d) => onDateChange(event, d, 'to')}
+                onValueChange={(event, d) => onDateChange(event, d, 'to')}
                 onDismiss={() => setShowToPicker(false)}
               />
             )}
