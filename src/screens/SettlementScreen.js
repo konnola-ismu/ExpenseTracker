@@ -323,6 +323,7 @@ export default function SettlementScreen({ navigation }) {
         value={amount}
         onChangeText={handleAmountChange}
         placeholder="0.000"
+        placeholderTextColor={colors.textSecondary}
         keyboardType="numeric"
       />
 
@@ -332,6 +333,7 @@ export default function SettlementScreen({ navigation }) {
         value={description}
         onChangeText={setDescription}
         placeholder="e.g. November rent balance"
+        placeholderTextColor={colors.textSecondary}
       />
 
       {memberBills.length > 0 && (
@@ -437,10 +439,12 @@ export default function SettlementScreen({ navigation }) {
                   </TouchableOpacity>
                   {isSelected && (
                     <TextInput
-                      style={{borderWidth: 1, borderColor: colors.borderLight, borderRadius: 5, padding: 8, minWidth: 80, textAlign: 'right', backgroundColor: colors.inputBackground}}
+                      style={styles.billAmountInput}
                       keyboardType="numeric"
                       value={selectedItem.amountToSettle}
                       onChangeText={(val) => handleBillAmountChange(billKey, val)}
+                      placeholder="0.000"
+                      placeholderTextColor={colors.textSecondary}
                     />
                   )}
                 </View>
@@ -583,6 +587,19 @@ const getStyles = (colors) => StyleSheet.create({
     fontSize: 15,
     fontWeight: 'bold',
     color: colors.primary
+  },
+  billAmountInput: {
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    minWidth: 85,
+    textAlign: 'right',
+    backgroundColor: colors.inputBackground,
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '600'
   },
   headerRow: {
     flexDirection: 'row',
